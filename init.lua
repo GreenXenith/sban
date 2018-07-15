@@ -212,24 +212,15 @@ end
 -- returns table of bans from ban & ban_history tables for the id
 local function list_ban(id)
 	local r = {}
+	local q = ban_fetch(id)
+	if q then r[1] = q end
+	-- check archive
 	local q = ([[
-	SELECT * FROM bans WHERE id = '%i'
+	SELECT * FROM ban_history WHERE id = '%i'
 	]]):format(id)
 	-- fill return table
 	for row in db:nrows(q) do
 		r[#r + 1] = row
-	end
-	if row then
-		return r
-	else
-		-- check archive
-		q = ([[
-		SELECT * FROM ban_history WHERE id = '%i'
-		]]):format(id)
-		-- fill return table
-		for row in db:nrows(q) do
-			r[#r + 1] = row
-		end
 	end
 	return r
 end
@@ -1656,14 +1647,14 @@ sban.unban = function(name, source, reason)
 	local id = get_id(name)
 	if id then
 		if not ban_fetch(id) then
-			return false, ("No active ban record for "..player_name)
+			return false, ("No active ban record for "..name)
 		end
-		update_ban_record(id, name, reason, player_name)
+		update_ban_record(id, name, reason, name)
 		if check_ban(id) then
-			minetest.log("error", "[sban] Failed to unban "..player_name)
-			return false
+			minetest.log("error", "[sban] Failed to unban "..name)
+			return false, ("Failed to unban "..name)
 		else
-			return true, ("Unbanned %s."):format(v.name)
+			return true, ("Unbanned %s."):format(name)
 		end
 	end
 end
@@ -1672,6 +1663,16 @@ sban.ban_status = function(name)
 	assert(type(name) == 'string')
 	local id = get_id(name)
 	return id ~= nil
+end
+
+sban.player_bans = function(name)
+	assert(type(name) == 'string')
+	local id = get_id(name)
+	if id then
+		return list_ban(id)
+	else
+		return false, (name.." doesn't exist!")
+	end
 end
 
 --[[
