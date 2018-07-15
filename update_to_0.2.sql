@@ -11,9 +11,9 @@ DELETE FROM bans where active != 'true';
 
 -- drop the active field from bans
 CREATE TABLE sban_temp AS SELECT bans.id AS 'id', bans.name AS 'name',
-bans.source AS 'source', bans.reason AS 'reason', bans.expires AS 'expires',
-bans.u_source AS 'u_source', bans.u_reason AS 'u_reason', bans.u_date AS 'u_date',
-bans.last_pos AS 'last_pos' FROM bans;
+bans.source AS 'source', bans.created AS 'created', bans.reason AS 'reason',
+bans.expires AS 'expires', bans.u_source AS 'u_source', bans.u_reason AS 'u_reason',
+bans.u_date AS 'u_date', bans.last_pos AS 'last_pos' FROM bans;
 DROP TABLE bans;
 CREATE TABLE bans AS SELECT * FROM sban_temp;
 DROP TABLE sban_temp;
