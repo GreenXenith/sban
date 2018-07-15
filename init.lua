@@ -215,7 +215,7 @@ local function list_ban(id)
 	local q = ban_fetch(id)
 	if q then r[1] = q end
 	-- check archive
-	local q = ([[
+	q = ([[
 	SELECT * FROM ban_history WHERE id = '%i'
 	]]):format(id)
 	-- fill return table
@@ -243,7 +243,7 @@ end
 local function get_active_bans()
 	local r = {}
 	local q = [[SELECT * FROM bans;]]
- 	for row in db:nrows(q) do
+	for row in db:nrows(q) do
 		r[#r+1] = row
 	end
 	return r
@@ -410,19 +410,6 @@ end
 ###########################
 ]]
 
--- create a new record for a new id
-local function create_player_record(player_name, ip_address)
-	-- players table id is auto incremented
-	local ts = os.time()
-	local stmt = [[
-	INSERT INTO players (ban) VALUES ('false');
-	]]
-	db_exec(stmt)
-	local id = db:last_insert_rowid()
-	add_player_record(id, player_name, ip_address)
-	return id
-end
-
 -- create a record for a new name/ip of a known id
 local function add_player_record(id, player_name, ip_address)
 	local ts = os.time()
@@ -431,6 +418,18 @@ local function add_player_record(id, player_name, ip_address)
 			VALUES (%s,'%s','%s',%s,%s)
 	]]):format(id, player_name, ip_address, ts, ts)
 	db_exec(stmt)
+end
+
+-- create a new record for a new id
+local function create_player_record(player_name, ip_address)
+	-- players table id is auto incremented
+	local stmt = [[
+	INSERT INTO players (ban) VALUES ('false');
+	]]
+	db_exec(stmt)
+	local id = db:last_insert_rowid()
+	add_player_record(id, player_name, ip_address)
+	return id
 end
 
 -- add a new whitelist record
@@ -547,19 +546,19 @@ local function update_ban_record(id, source, reason, name)
 	("[sban] %s unbanned by %s reason: %s"):format(name, source, reason))
 end
 
-local function reset_orphan_record(id)
-	local stmt = ([[
-	UPDATE players SET ban = 'false' WHERE id = '%s';
-	]]):format(id)
-	db_exec(stmt)
-end
+-- local function reset_orphan_record(id)
+-- 	local stmt = ([[
+-- 	UPDATE players SET ban = 'false' WHERE id = '%s';
+-- 	]]):format(id)
+-- 	db_exec(stmt)
+-- end
 
-local function update_version(str)
-	local stmt = ([[
-	UPDATE version SET rev = '%s';
-	]]):format(str)
-	db_exec(stmt)
-end
+-- local function update_version(str)
+-- 	local stmt = ([[
+-- 	UPDATE version SET rev = '%s';
+-- 	]]):format(str)
+-- 	db_exec(stmt)
+-- end
 
 --[[
 ##################################
@@ -571,7 +570,7 @@ local function del_ban_record(id)
 	local stmt = ([[
 		DELETE FROM bans WHERE id = '%i'
 	]]):format(id)
-	db:close_vm()
+	db_exec(stmt)
 end
 
 local function del_whitelist(name_or_ip)
@@ -1526,7 +1525,7 @@ minetest.override_chatcommand("unban", {
 				minetest.log("error", "[sban] Failed to unban "..player_name)
 				return false
 			else
-				return true, ("Unbanned %s."):format(v.name)
+				return true, ("Unbanned %s."):format(player_name)
 			end
 		end
 	end,
@@ -1627,8 +1626,8 @@ sban.ban = function(name, source, reason, expires)
 	elseif not id then
 		return false, name.." doesn't exist!"
 	end
-	
-	create_ban_record(player_name, name, reason, expires)
+	-- ban player
+	create_ban_record(name, source, reason, expires)
 	-- check database
 	if not check_ban(id) then
 		minetest.log("info", "sban failed to store "..name)
