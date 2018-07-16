@@ -323,7 +323,7 @@ local function display_record(name, p_name)
 				names[#names + 1] = record_name
 			end
 		end
-		minetest.chat_send_player(name, "Names: " .. table.concat(names, ", "))
+		minetest.chat_send_player(name, "\nNames: " .. table.concat(names, ", "))
 	end
 
 	local privs = minetest.get_player_privs(name)
@@ -332,10 +332,10 @@ local function display_record(name, p_name)
 	if #r > display_max then
 		idx = #r - display_max
 		minetest.chat_send_player(name,
-		"Player records: "..#r.." (showing last "..display_max.." records)")
+		"\nPlayer records: "..#r.." (showing last "..display_max.." records)\n")
 	else
 		minetest.chat_send_player(name,
-		"Player records: "..#r)
+		"\nPlayer records: "..#r.."\n")
 	end
 	if privs.ban_admin == true then
 		for i = idx, #r do
@@ -343,7 +343,7 @@ local function display_record(name, p_name)
 			local d1 = hrdf(r[i].created)
 			local d2 = hrdf(r[i].last_login)
 			minetest.chat_send_player(name,
-				("[%s] Name: %s IP: %s Created: %s Last login: %s"
+				("[%s] Name: %s IP: %s Created: %s Last login: %s\n"
 			):format(i, r[i].name, r[i].ip, d1, d2))
 		end
 	else
@@ -351,7 +351,7 @@ local function display_record(name, p_name)
 			local d1 = hrdf(r[i].created)
 			local d2 = hrdf(r[i].last_login)
 			minetest.chat_send_player(name,
-				("[%s] Name: %s Created: %s Last login: %s"
+				("[%s] Name: %s Created: %s Last login: %s\n"
 			):format(i, r[i].name, d1, d2))
 		end
 	end
@@ -359,8 +359,8 @@ local function display_record(name, p_name)
 	local t = list_ban(id) or {}
 
 	if #t > 0 then
-		minetest.chat_send_player(name, "Ban records: "..#t)
-		local ban = t[#t].active
+		minetest.chat_send_player(name, "\nBan records: "..#t.."\n")
+		local ban = tostring(ban_fetch(id) ~= nil)
 		for i, e in ipairs(t) do
 			local d1 = hrdf(e.created)
 			local expires
@@ -373,20 +373,20 @@ local function display_record(name, p_name)
 			and e.u_date > 0 then
 				local d2 = hrdf(e.u_date)
 				minetest.chat_send_player(name,
-					("[%s] Name: %s Created: %s Banned by: %s Reason: %s Expires: %s"
+					("[%s] Name: %s Created: %s Banned by: %s Reason: %s Expires: %s\n"
 				):format(i, e.name, d1, e.source, e.reason, expires))
 				minetest.chat_send_player(name,
 					("[%s] Unbanned by: %s Reason: %s Time: %s"
 				):format(i, e.u_source, e.u_reason, d2))
 			else
 				minetest.chat_send_player(name,
-					("[%s] Name: %s Created: %s Banned by: %s Reason: %s Expires: %s"
+					("[%s] Name: %s Created: %s Banned by: %s Reason: %s Expires: %s\n"
 				):format(i, e.name, d1, e.source, e.reason, expires))
 			end
 		end
-		minetest.chat_send_player(name, "Banned: "..ban)
+		minetest.chat_send_player(name, "\nBanned: "..ban)
 	else
-		minetest.chat_send_player(name, "No Ban records!")
+		minetest.chat_send_player(name, "\nNo Ban records!")
 	end
 end
 
@@ -472,7 +472,7 @@ local function create_ban_record(name, source, reason, expires)
 
 	-- add a new record & update status of id
 	local stmt = ([[
-		UPDATE players SET bans = 'true' WHERE id = '%s';
+		UPDATE players SET ban = 'true' WHERE id = '%s';
 		INSERT INTO bans VALUES ('%s','%s','%s','%s','%s','%s','','','','%s');
 	]]):format(id, id, name, source, ts, p_reason, expires, last_pos)
 	db_exec(stmt)
@@ -497,7 +497,9 @@ local function create_ban_record(name, source, reason, expires)
 	for i, v in ipairs(records) do
 		player = minetest.get_player_by_name(v.name)
 		if player then
-			player:set_detach() -- in case attached!
+			-- players try to bypass by being attached to an entity
+			-- set_detach()no error if the player wasn't attached :)
+			player:set_detach()
 			minetest.kick_player(v.name, msg_k)
 		end
 	end
@@ -530,15 +532,15 @@ local function update_ban_record(id, source, reason, name)
 	reason = parse_reason(reason)
 	local ts = os.time()
 	local stmt = ([[
-		UPDATE players SET bans = 'false' WHERE id = '%i';
-		INSERT INTO ban_history SELECT * FROM bans WHERE id = '%i';
-		UPDATE ban_history SET
+		UPDATE players SET ban = 'false' WHERE id = '%i';
+		UPDATE bans SET
 			u_source = '%s',
 			u_reason = '%s',
-			u_date = '%i'
+			u_date = '%s'
 		WHERE id = '%i';
+		INSERT INTO ban_history SELECT * FROM bans WHERE id = '%i';
 		DELETE FROM bans WHERE id = '%i';
-	]]):format(id, id, source, reason, ts, id, id)
+	]]):format(id, source, reason, ts, id, id, id)
 	db_exec(stmt)
 	ban_remove(id) -- update cache
 	-- log event
