@@ -1,6 +1,8 @@
 -- sban mod for minetest voxel game
 -- designed and coded by shivajiva101@hotmail.com
 
+sban = {}
+
 local WP = minetest.get_worldpath()
 local WL
 local ie = minetest.request_insecure_environment()
@@ -1629,6 +1631,70 @@ minetest.register_chatcommand("/whois", {
 		return false, "Player info for " .. param .. ": " .. msg1 .. msg2
 	end,
 })
+
+
+--[[
+#######################
+###  API Functions  ###
+#######################
+]]
+
+sban.ban = function(name, source, reason, expires)
+	-- check params are valid
+	assert(type(name) == 'string')
+	assert(type(source) == 'string')
+	assert(type(reason) == 'string')
+	if expires then
+		assert(type(expires) == 'string')
+		expires = parse_time(expires)
+	end
+	local id = get_id(name)
+	if id and active_ban_record(id) then
+		return false, name.." is already banned!"
+	elseif not id then
+		return false, name.." doesn't exist!"
+	end
+	-- ban player
+	create_ban_record(name, source, reason, expires)
+	-- check database
+	if not check_ban(id) then
+		minetest.log("info", "sban failed to store "..name)
+		return false, ("sban failed to store %s"):format(name)
+	else
+		return true, ("Banned %s."):format(name)
+	end
+end
+
+sban.unban = function(name, source, reason)
+	-- check params are valid
+	assert(type(name) == 'string')
+	assert(type(source) == 'string')
+	assert(type(reason) == 'string')
+	-- look for records by id
+	local id = get_id(name)
+	if id then
+		if not active_ban_record(id) then
+			return false, ("No active ban record for "..name)
+		end
+		update_ban_record(id, name, reason, name)
+		if check_ban(id) then
+			minetest.log("error", "[sban] Failed to unban "..name)
+			return false, ("Failed to unban "..name)
+		else
+			return true, ("Unbanned %s."):format(name)
+		end
+	end
+end
+
+sban.checkban = function(name_or_ip)
+	assert(type(name_or_ip) == 'string')
+	local id = get_id(name_or_ip)
+	if id then
+		if active_ban_record(id) then
+			return true
+		end
+	end
+end
 
 --[[
 ############################
